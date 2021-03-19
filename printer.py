@@ -1,17 +1,48 @@
 import os
 import subprocess
 import re
-from typing import Optional, Callable, List
+from datetime import timedelta
+from typing import Optional, Callable, List, Dict
 from dataclasses import dataclass
 
-from status import parse
+from status import get_status, Status
+from brother_ql import brother_ql_create, BrotherQLRaster
 from brother_ql.backends import backend_factory, BrotherQLBackendGeneric
 
+from rx.scheduler import EventLoopScheduler
 
-@dataclass
-class PrinterInfo:
-    serial: str
-    path: str
+import logging
+logger = logging.getLogger(__name__)
+
+
+class Printer:
+    def __init__(self, path: str, serial: str):
+        self.path = path
+        self.serial = serial
+        self.backend_cls = backend_factory("linux_kernel")['backend_class']
+        self.model: Optional[str] = None
+        self.scheduler = EventLoopScheduler()
+        self.status: Optional[Status] = None
+
+        self.periodic = self.scheduler.schedule_periodic(timedelta(seconds=5), self._get_status)
+
+    def _get_status(self, state):
+        logger.info("Getting status")
+
+        try:
+            backend = self.backend_cls(self.path)
+            self.status = get_status(backend)
+        except:
+            self.status = None
+
+    def _print(self, file_path: str):
+        raster = BrotherQLRaster(self.model)
+        # print_data = brother_ql_create.convert(raster, [file_path], )
+
+    def dispose(self):
+        logger.debug(f"Disposing of {self.serial}")
+        self.periodic.dispose()
+
 
 
 def try_get_serial(identifier: str) -> Optional[str]:
@@ -35,36 +66,17 @@ def try_get_serial(identifier: str) -> Optional[str]:
     return None
 
 
-def detect_printers() -> List[PrinterInfo]:
-    info = []
+def detect_printers() -> Dict[str, str]:
+    info = {}
     accessor = backend_factory("linux_kernel")
     devices = accessor['list_available_devices']()
-    # backend_class = accessor['backend_class']
 
     for device in devices:
         identifier = device['identifier']
         result = try_get_serial(identifier)
-        info.append(PrinterInfo(serial=result, path=identifier))
-        print(f"{identifier} has serial {result}")
+        info[result] = identifier
 
     return info
-
-        #
-        # backend = backend_class(device['identifier'])
-        # backend.write(b'\x1B\x69\x53')
-        # data = attempt_read(backend)
-        # if data:
-        #     parse(data)
-        #     print(" ".join(f"{int(b):x}" for b in data))
-
-
-# def attempt_read(backend: BrotherQLBackendGeneric):
-#     attempts = 0
-#     while attempts < 5:
-#         result = backend.read()
-#         if result:
-#             return result
-#         attempts += 1
 
 
 def main():
