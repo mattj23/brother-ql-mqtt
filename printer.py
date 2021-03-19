@@ -1,10 +1,17 @@
 import os
 import subprocess
 import re
-from typing import Optional
+from typing import Optional, Callable, List
+from dataclasses import dataclass
 
 from status import parse
 from brother_ql.backends import backend_factory, BrotherQLBackendGeneric
+
+
+@dataclass
+class PrinterInfo:
+    serial: str
+    path: str
 
 
 def try_get_serial(identifier: str) -> Optional[str]:
@@ -28,15 +35,19 @@ def try_get_serial(identifier: str) -> Optional[str]:
     return None
 
 
-def detect_printers():
+def detect_printers() -> List[PrinterInfo]:
+    info = []
     accessor = backend_factory("linux_kernel")
     devices = accessor['list_available_devices']()
-    backend_class = accessor['backend_class']
+    # backend_class = accessor['backend_class']
 
     for device in devices:
         identifier = device['identifier']
         result = try_get_serial(identifier)
+        info.append(PrinterInfo(serial=result, path=identifier))
         print(f"{identifier} has serial {result}")
+
+    return info
 
         #
         # backend = backend_class(device['identifier'])
