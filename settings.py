@@ -9,6 +9,7 @@ class Settings:
     mqtt_broker_host: str
     mqtt_broker_port: int
     printer_check_period_s: Optional[int] = 5
+    status_update_period_s: Optional[int] = 5
 
 
 def load_settings():

@@ -1,5 +1,6 @@
 {
   "mqtt_broker_host": "host-name-or-ip",
   "mqtt_broker_port": 1883,
-  "printer_check_period_s": 10
+  "printer_check_period_s": 10,
+  "status_update_period_s": 10
 }

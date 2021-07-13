@@ -1,4 +1,5 @@
 import time
+from enum import Enum
 from typing import Optional
 from dataclasses import dataclass, asdict
 
@@ -31,15 +32,37 @@ media_types = {
 }
 
 
+class StatusType(Enum):
+    Reply = 0x0
+    PrintingComplete = 0x1
+    ErrorOccurred = 0x2
+    TurnedOff = 0x4
+    Notification = 0x5
+    PhaseChange = 0x6
+
+
+class PhaseState(Enum):
+    Receiving = 0x0
+    Printing = 0x1
+
+
 @dataclass
 class Status:
     model: str
     media_width: int
     media_length: int
     media_type: str
+    errors: int
+    status_type: StatusType
+    phase: PhaseState
+    notification: int
 
     def as_dict(self):
-        return asdict(self)
+        temp = asdict(self)
+        temp["status_type"] = str(self.status_type)
+        temp["phase"] = str(self.phase)
+        return temp
+
 
 def get_status(backend: BrotherQLBackendGeneric) -> Optional[Status]:
     backend.write(b'\x1B\x69\x53')
@@ -60,13 +83,14 @@ def attempt_read(backend: BrotherQLBackendGeneric):
 
 
 def parse(b: bytes) -> Status:
-    # print(" ".join(f"{int(b_):x}" for b_ in b))
+    print(" ".join(f"{int(b_):x}" for b_ in b))
     model_code = int.from_bytes(b[3:5], "big")
     errors = int.from_bytes(b[8:10], "big")
     media_width = int(b[10])
     media_type = int(b[11])
     media_length = int(b[17])
     status_type = int(b[18])
+    phase = int(b[19])
     notification = int(b[22])
     text_color = int(b[25])
 
@@ -75,5 +99,9 @@ def parse(b: bytes) -> Status:
         model=models.get(model_code, "Unknown"),
         media_width=media_width,
         media_length=media_length,
-        media_type=media_types.get(media_type, "Unknown")
+        media_type=media_types.get(media_type, "Unknown"),
+        errors=errors,
+        status_type=StatusType(status_type),
+        phase=PhaseState(phase),
+        notification=notification
     )

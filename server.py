@@ -9,14 +9,17 @@ import time
 import rx
 import json
 import socket
-from paho.mqtt.client import Client
+from paho.mqtt.client import Client, MQTTMessage
 
 from printer import detect_printers, Printer
+from print_manager import PrintManager
 from settings import Settings, load_settings
 
 host_name = socket.gethostname()
 is_running = True
 printers: Dict[str, Printer] = {}
+managers: Dict[str, PrintManager] = {}
+sub_topic_root = f"label_servers/print/{host_name}"
 
 
 def get_host_ip():
@@ -28,14 +31,22 @@ def get_host_ip():
             return '127.0.0.1'
 
 
-def on_message(client: Client, user_data, message):
-    logger.info(f"Rx Message")
-    print(message)
+def on_message(client: Client, user_data, message: MQTTMessage):
+    logger.info(f"Received Message: {message.topic}")
+
+    # Remove topic root
+    stripped = message.topic.replace(sub_topic_root, "").strip("/")
+
+    # Print requests should be of the form "<printer_serial>/<mode>"
+    parts = stripped.split("/")
+    if len(parts) >= 2 and parts[0] in printers:
+        serial, mode, *_ = parts
+        managers[serial].handle_request(mode, message.payload)
 
 
 def on_connect(client: Client, user_data, flags, rc):
     logger.info(f"Connected with result code {rc}")
-    sub_topic = f"label_server/print/{host_name}"
+    sub_topic = f"{sub_topic_root}/#"
     logger.info(f"Subscribing to: {sub_topic}")
     client.subscribe(sub_topic)
 
@@ -47,12 +58,14 @@ def update_known_printers(settings: Settings):
         if serial not in printers:
             logger.info(f"Adding printer {serial}")
             printers[serial] = Printer(path=path, serial=serial, check_period=settings.printer_check_period_s)
+            managers[serial] = PrintManager(printers[serial])
 
     for k in list(printers.keys()):
         if k not in detected:
             logger.info(f"Removing printer {k}")
             printers[k].dispose()
             del printers[k]
+            del managers[k]
 
 
 def main():
@@ -73,6 +86,7 @@ def main():
 
         status = {
             "ip": ip_address,
+            "host": host_name,
             "printers": [p.info_dict() for k, p in printers.items()]
         }
         client.publish(f"label_servers/status/{host_name}", json.dumps(status))
