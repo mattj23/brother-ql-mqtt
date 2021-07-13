@@ -1,6 +1,6 @@
 import time
 from typing import Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 from brother_ql.backends import BrotherQLBackendGeneric
 
@@ -38,6 +38,8 @@ class Status:
     media_length: int
     media_type: str
 
+    def as_dict(self):
+        return asdict(self)
 
 def get_status(backend: BrotherQLBackendGeneric) -> Optional[Status]:
     backend.write(b'\x1B\x69\x53')

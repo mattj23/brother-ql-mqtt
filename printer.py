@@ -12,11 +12,12 @@ from brother_ql.backends import backend_factory, BrotherQLBackendGeneric
 from rx.scheduler import EventLoopScheduler
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
 class Printer:
-    def __init__(self, path: str, serial: str):
+    def __init__(self, path: str, serial: str, check_period: int=5):
         self.path = path
         self.serial = serial
         self.backend_cls = backend_factory("linux_kernel")['backend_class']
@@ -24,14 +25,15 @@ class Printer:
         self.scheduler = EventLoopScheduler()
         self.status: Optional[Status] = None
 
-        self.periodic = self.scheduler.schedule_periodic(timedelta(seconds=5), self._get_status)
+        self.periodic = self.scheduler.schedule_periodic(timedelta(seconds=check_period), self._get_status)
 
     def _get_status(self, state):
-        logger.info("Getting status")
+        logger.debug("Getting status")
 
         try:
             backend = self.backend_cls(self.path)
             self.status = get_status(backend)
+            self.model = self.status.model
         except:
             self.status = None
 
@@ -43,6 +45,11 @@ class Printer:
         logger.debug(f"Disposing of {self.serial}")
         self.periodic.dispose()
 
+    def info_dict(self) -> Dict:
+        info = {"model": self.model, "serial": self.serial, "status": None}
+        if self.status is not None:
+            info["status"] = self.status.as_dict()
+        return info
 
 
 def try_get_serial(identifier: str) -> Optional[str]:
@@ -62,7 +69,7 @@ def try_get_serial(identifier: str) -> Optional[str]:
     serial_file = os.path.join(working_folder, "serial")
     if os.path.exists(serial_file):
         with open(serial_file, "r") as handle:
-            return handle.read()
+            return handle.read().strip()
     return None
 
 

@@ -12,11 +12,12 @@ import socket
 from paho.mqtt.client import Client
 
 from printer import detect_printers, Printer
-
+from settings import Settings, load_settings
 
 host_name = socket.gethostname()
 is_running = True
 printers: Dict[str, Printer] = {}
+
 
 def get_host_ip():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -39,13 +40,13 @@ def on_connect(client: Client, user_data, flags, rc):
     client.subscribe(sub_topic)
 
 
-def update_known_printers():
+def update_known_printers(settings: Settings):
     """ Detect the printers currently on the system and update the printers dictionary as appropriate. """
     detected = detect_printers()
     for serial, path in detected.items():
         if serial not in printers:
             logger.info(f"Adding printer {serial}")
-            printers[serial] = Printer(path=path, serial=serial)
+            printers[serial] = Printer(path=path, serial=serial, check_period=settings.printer_check_period_s)
 
     for k in list(printers.keys()):
         if k not in detected:
@@ -56,8 +57,11 @@ def update_known_printers():
 
 def main():
     logger.info(f"Starting server")
+
+    settings = load_settings()
+
     client = Client(host_name)
-    client.connect("abacus.mjarvis.info", 1883, 60)
+    client.connect(settings.mqtt_broker_host, settings.mqtt_broker_port, 60)
     client.on_connect = on_connect
     client.on_message = on_message
 
@@ -65,11 +69,11 @@ def main():
 
     while is_running:
         ip_address = get_host_ip()
-        update_known_printers()
+        update_known_printers(settings)
 
         status = {
             "ip": ip_address,
-            # "printers": [p.serial for p in printers]
+            "printers": [p.info_dict() for k, p in printers.items()]
         }
         client.publish(f"label_servers/status/{host_name}", json.dumps(status))
         time.sleep(5)
