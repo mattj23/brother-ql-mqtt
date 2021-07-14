@@ -35,13 +35,16 @@ def on_message(client: Client, user_data, message: MQTTMessage):
     logger.info(f"Received Message: {message.topic}")
 
     # Remove topic root
-    stripped = message.topic.replace(sub_topic_root, "").strip("/")
+    try:
+        stripped = message.topic.replace(sub_topic_root, "").strip("/")
 
-    # Print requests should be of the form "<printer_serial>/<mode>"
-    parts = stripped.split("/")
-    if len(parts) >= 2 and parts[0] in printers:
-        serial, mode, *_ = parts
-        managers[serial].handle_request(mode, message.payload)
+        # Print requests should be of the form "<printer_serial>/<mode>"
+        parts = stripped.split("/")
+        if len(parts) >= 2 and parts[0] in printers:
+            serial, mode, *_ = parts
+            managers[serial].handle_request(mode, message.payload)
+    except Exception as e:
+        logger.error("Error processing received message", exc_info=e)
 
 
 def on_connect(client: Client, user_data, flags, rc):
@@ -49,6 +52,7 @@ def on_connect(client: Client, user_data, flags, rc):
     sub_topic = f"{sub_topic_root}/#"
     logger.info(f"Subscribing to: {sub_topic}")
     client.subscribe(sub_topic)
+    client.will_set(f"label_servers/status/{host_name}", json.dumps({"online": False}))
 
 
 def update_known_printers(settings: Settings):
@@ -85,12 +89,14 @@ def main():
         update_known_printers(settings)
 
         status = {
+            "online": True,
             "ip": ip_address,
             "host": host_name,
-            "printers": [p.info_dict() for k, p in printers.items()]
+            "printers": [p.info_dict() for k, p in printers.items()],
+            "update_s": settings.printer_check_period_s
         }
         client.publish(f"label_servers/status/{host_name}", json.dumps(status))
-        time.sleep(5)
+        time.sleep(settings.printer_check_period_s)
 
 
 if __name__ == '__main__':
