@@ -1,8 +1,13 @@
 from typing import Any
+import requests
 
 from PIL import Image
 from io import BytesIO
 from printer import Printer
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class PrintManager:
@@ -21,5 +26,11 @@ class PrintManager:
             image = Image.open(stream, mode="r")
             self.printer.print_image(image)
 
-
-
+        if mode == "url":
+            payload: bytes
+            url = payload.decode()
+            logger.info(f"Received URL for print on {self.printer.serial}: {payload}")
+            response = requests.get(url)
+            stream = BytesIO(response.content)
+            image = Image.open(stream, mode="r")
+            self.printer.print_image(image)

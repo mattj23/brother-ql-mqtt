@@ -46,12 +46,12 @@ class Printer:
 
     def print_image(self, image: Image, red=False):
         raster = BrotherQLRaster(self.model)
-        print_data = brother_ql.brother_ql_create.convert(raster, [image], str(self.label_width), dither=True, red=red)
+        # print_data = brother_ql.brother_ql_create.convert(raster, [image], str(self.label_width), dither=True, red=red)
+        print_data = brother_ql.brother_ql_create.convert(raster, [image], str(self.label_width), dither=True)
         self.backend.write(print_data)
         while True:
             data = attempt_read(self.backend)
             if data:
-                start = time.time()
                 self.status = parse(data)
                 print(self.status)
 
