@@ -83,7 +83,7 @@ def attempt_read(backend: BrotherQLBackendGeneric):
 
 
 def parse(b: bytes) -> Status:
-    print(" ".join(f"{int(b_):x}" for b_ in b))
+    # print(" ".join(f"{int(b_):x}" for b_ in b))
     model_code = int.from_bytes(b[3:5], "big")
     errors = int.from_bytes(b[8:10], "big")
     media_width = int(b[10])

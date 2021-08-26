@@ -78,6 +78,11 @@ def main():
     settings = load_settings()
 
     client = Client(host_name)
+
+    # TLS settings if we have them
+    if settings.tls_cafile is not None and settings.tls_cafile.strip():
+        client.tls_set(settings.tls_cafile)
+
     client.connect(settings.mqtt_broker_host, settings.mqtt_broker_port, 60)
     client.on_connect = on_connect
     client.on_message = on_message
