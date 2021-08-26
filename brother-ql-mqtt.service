@@ -1,0 +1,13 @@
+[Unit]
+Description=Brother QL MQTT Label Service
+After=multi-user.target
+
+[Service]
+Type=simple
+User=pi
+Restart=always
+WorkingDirectory=/home/pi/brother-ql-mqtt
+ExecStart=/usr/bin/python3 /home/pi/brother-ql-mqtt/server.py
+
+[Install]
+WantedBy=multi-user.target

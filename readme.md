@@ -6,6 +6,27 @@ This software provides an MQTT interface to a set of usb-connected Brother QL la
 * Uses the `brother_ql` python package
 * Connects to a single MQTT broker and performs all communication through it
 
+## Quick install guide
+
+For installing this on a raspberry pi, for example
+
+```bash
+git clone https://github.com/mattj23/brother-ql-mqtt.git
+cd brother-ql-mqtt
+pip3 install -r requirements.txt
+
+# Edit the settings.json file to match your mqtt broker
+# Don't forgot to set tls_cafile if you're using tls, otherwise you'll get
+# all sorts of cryptic errors
+
+# Edit the unit file to match your user and absolute path before
+# you copy it to the systemd folder
+sudo cp brother-ql-mqtt.service /etc/systemd/system/
+sudo systemctl enable brother-ql-mqtt
+sudo systemctl start brother-ql-mqtt
+sudo systemctl status brother-ql-mqtt
+```
+
 ## Overview
 
 The goal of this software is to provide a scalable backend for Brother QL label printers.
@@ -39,3 +60,5 @@ Concerns:
 ### Central Manager
 * Add all complexity here
 * Maintain a list of unique printer serial numbers, and be able to assign aliases to them
+
+
