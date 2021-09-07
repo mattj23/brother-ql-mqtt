@@ -49,6 +49,7 @@ class Printer:
         # print_data = brother_ql.brother_ql_create.convert(raster, [image], str(self.label_width), dither=True, red=red)
         print_data = brother_ql.brother_ql_create.convert(raster, [image], str(self.label_width), dither=True)
         self.backend.write(print_data)
+        start = time.time()
         while True:
             data = attempt_read(self.backend)
             if data:
@@ -63,6 +64,10 @@ class Printer:
                     break
 
             time.sleep(0.2)
+
+            if time.time() - start > 3:
+                logger.info(f"Status timeout while printing on {self.serial}")
+                break
 
         # send initialize
         self.backend.write(b'\x1b\x40')
