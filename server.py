@@ -1,25 +1,23 @@
 import sys
 import logging
-from typing import Dict
+from typing import Dict, Optional
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s [%(levelname)s] %(message)s")
 logger = logging.getLogger()
 
 import time
-import rx
 import json
 import socket
-from paho.mqtt.client import Client, MQTTMessage
 
 from printer import detect_printers, Printer
 from print_manager import PrintManager
-from settings import Settings, load_settings
+from common import Settings, load_settings, TransportClient, HostStatus, PrintRequest
+from mqtt_client import MqttClient
 
 host_name = socket.gethostname()
 is_running = True
 printers: Dict[str, Printer] = {}
 managers: Dict[str, PrintManager] = {}
-sub_topic_root = f"label_servers/print/{host_name}"
 
 
 def get_host_ip():
@@ -29,30 +27,6 @@ def get_host_ip():
             return s.getsockname()[0]
         except Exception:
             return '127.0.0.1'
-
-
-def on_message(client: Client, user_data, message: MQTTMessage):
-    logger.info(f"Received Message: {message.topic}")
-
-    # Remove topic root
-    try:
-        stripped = message.topic.replace(sub_topic_root, "").strip("/")
-
-        # Print requests should be of the form "<printer_serial>/<mode>"
-        parts = stripped.split("/")
-        if len(parts) >= 2 and parts[0] in printers:
-            serial, mode, *_ = parts
-            managers[serial].handle_request(mode, message.payload)
-    except Exception as e:
-        logger.error("Error processing received message", exc_info=e)
-
-
-def on_connect(client: Client, user_data, flags, rc):
-    logger.info(f"Connected with result code {rc}")
-    sub_topic = f"{sub_topic_root}/#"
-    logger.info(f"Subscribing to: {sub_topic}")
-    client.subscribe(sub_topic)
-    client.will_set(f"label_servers/status/{host_name}", json.dumps({"online": False}))
 
 
 def update_known_printers(settings: Settings):
@@ -72,35 +46,34 @@ def update_known_printers(settings: Settings):
             del managers[k]
 
 
+def on_request_receive(request: PrintRequest):
+    if request.serial in managers:
+        managers[request.serial].handle_request(request)
+    else:
+        logger.info(f"Request for {request.serial}, a printer which was not found")
+
+
 def main():
     logger.info(f"Starting server")
 
     settings = load_settings()
 
-    client = Client(host_name)
+    client: Optional[TransportClient] = None
+    if settings.mqtt:
+        client = MqttClient(host_name, settings.mqtt)
 
-    # TLS settings if we have them
-    if settings.tls_cafile is not None and settings.tls_cafile.strip():
-        client.tls_set(settings.tls_cafile)
+    if not client:
+        raise Exception("No transport client was created")
 
-    client.connect(settings.mqtt_broker_host, settings.mqtt_broker_port, 60)
-    client.on_connect = on_connect
-    client.on_message = on_message
-
-    client.loop_start()
+    client.start(on_request_receive)
 
     while is_running:
         ip_address = get_host_ip()
         update_known_printers(settings)
 
-        status = {
-            "online": True,
-            "ip": ip_address,
-            "host": host_name,
-            "printers": [p.info_dict() for k, p in printers.items()],
-            "update_s": settings.printer_check_period_s
-        }
-        client.publish(f"label_servers/status/{host_name}", json.dumps(status))
+        status = HostStatus(online=True, ip=ip_address, host=host_name, update_s=settings.printer_check_period_s,
+                            printers=[p.info() for p in printers.values()])
+        client.publish(status)
         time.sleep(settings.printer_check_period_s)
 
 

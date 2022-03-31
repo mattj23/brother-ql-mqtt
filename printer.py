@@ -4,10 +4,10 @@ import re
 import time
 from datetime import timedelta
 from typing import Optional, Callable, List, Dict
-from dataclasses import dataclass
 
 import brother_ql.brother_ql_create
 
+from common import PrinterInfo
 from status import get_status, Status, parse, attempt_read, StatusType
 from brother_ql import brother_ql_create, BrotherQLRaster
 from brother_ql.backends import backend_factory, BrotherQLBackendGeneric, helpers
@@ -78,11 +78,8 @@ class Printer:
         logger.debug(f"Disposing of {self.serial}")
         self.periodic.dispose()
 
-    def info_dict(self) -> Dict:
-        info = {"model": self.model, "serial": self.serial, "status": None}
-        if self.status is not None:
-            info["status"] = self.status.as_dict()
-        return info
+    def info(self) -> PrinterInfo:
+        return PrinterInfo(model=self.model, serial=self.serial, status=self.status)
 
 
 def try_get_serial(identifier: str) -> Optional[str]:

@@ -1,7 +1,7 @@
 import time
 from enum import Enum
 from typing import Optional
-from dataclasses import dataclass, asdict
+from common import StatusType, Status, PhaseState
 
 from brother_ql.backends import BrotherQLBackendGeneric
 
@@ -30,38 +30,6 @@ media_types = {
     0x4A: "Continuous",
     0x4B: "Die-cut",
 }
-
-
-class StatusType(Enum):
-    Reply = 0x0
-    PrintingComplete = 0x1
-    ErrorOccurred = 0x2
-    TurnedOff = 0x4
-    Notification = 0x5
-    PhaseChange = 0x6
-
-
-class PhaseState(Enum):
-    Receiving = 0x0
-    Printing = 0x1
-
-
-@dataclass
-class Status:
-    model: str
-    media_width: int
-    media_length: int
-    media_type: str
-    errors: int
-    status_type: StatusType
-    phase: PhaseState
-    notification: int
-
-    def as_dict(self):
-        temp = asdict(self)
-        temp["status_type"] = str(self.status_type)
-        temp["phase"] = str(self.phase)
-        return temp
 
 
 def get_status(backend: BrotherQLBackendGeneric) -> Optional[Status]:
