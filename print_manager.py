@@ -4,7 +4,7 @@ from PIL import Image
 from io import BytesIO
 
 from common import PrintRequest, RequestMode
-from printer import Printer
+from printer import Printer, PrinterBase
 
 import logging
 
@@ -18,8 +18,8 @@ class PrintManager:
     could be decoding a stream of bytes into a png before sending it to the printer.
     """
 
-    def __init__(self, printer: Printer):
-        self.printer: Printer = printer
+    def __init__(self, printer: PrinterBase):
+        self.printer: PrinterBase = printer
 
     def handle_request(self, request: PrintRequest):
         if request.mode == RequestMode.PNG:

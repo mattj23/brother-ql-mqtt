@@ -96,6 +96,7 @@ class TransportClient(ABC):
 @dataclass
 class SignalRSettings:
     endpoint: str
+    verify_ssl: bool = True
 
 
 @dataclass

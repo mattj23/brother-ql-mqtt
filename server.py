@@ -9,15 +9,17 @@ import time
 import json
 import socket
 
-from printer import detect_printers, Printer
+from printer import detect_printers, Printer, MockPrinter, PrinterBase
 from print_manager import PrintManager
 from common import Settings, load_settings, TransportClient, HostStatus, PrintRequest
 from mqtt_client import MqttClient
+from signalr_client import SignalRClient
 
 host_name = socket.gethostname()
 is_running = True
-printers: Dict[str, Printer] = {}
+printers: Dict[str, PrinterBase] = {}
 managers: Dict[str, PrintManager] = {}
+is_mock = True
 
 
 def get_host_ip():
@@ -31,6 +33,15 @@ def get_host_ip():
 
 def update_known_printers(settings: Settings):
     """ Detect the printers currently on the system and update the printers dictionary as appropriate. """
+    # Mock printer for debugging
+    if is_mock:
+        for serial in ["TEST PRINTER 0", "TEST PRINTER 1", "TEST PRINTER 2"]:
+            if serial not in printers:
+                printers[serial] = MockPrinter(serial)
+                managers[serial] = PrintManager(printers[serial])
+        return
+
+    # Detect real printers
     detected = detect_printers()
     for serial, path in detected.items():
         if serial not in printers:
@@ -61,6 +72,9 @@ def main():
     client: Optional[TransportClient] = None
     if settings.mqtt:
         client = MqttClient(host_name, settings.mqtt)
+
+    if settings.signalr:
+        client = SignalRClient(settings.signalr)
 
     if not client:
         raise Exception("No transport client was created")

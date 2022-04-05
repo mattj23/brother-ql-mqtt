@@ -2,15 +2,16 @@ import os
 import subprocess
 import re
 import time
+from abc import ABCMeta, abstractmethod
 from datetime import timedelta
-from typing import Optional, Callable, List, Dict
+from typing import Optional, Dict
 
 import brother_ql.brother_ql_create
 
-from common import PrinterInfo
+from common import PrinterInfo, PhaseState
 from status import get_status, Status, parse, attempt_read, StatusType
-from brother_ql import brother_ql_create, BrotherQLRaster
-from brother_ql.backends import backend_factory, BrotherQLBackendGeneric, helpers
+from brother_ql import BrotherQLRaster
+from brother_ql.backends import backend_factory
 
 from PIL import Image
 
@@ -21,8 +22,50 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class Printer:
-    def __init__(self, path: str, serial: str, check_period: int=5):
+class PrinterBase(metaclass=ABCMeta):
+    @abstractmethod
+    def __init__(self, serial: str):
+        self.serial = serial
+
+    @abstractmethod
+    def print_image(self, image: Image, red: bool = False):
+        pass
+
+    @abstractmethod
+    def dispose(self):
+        pass
+
+    @abstractmethod
+    def info(self):
+        pass
+
+
+class MockPrinter(PrinterBase):
+    def __init__(self, serial: str):
+        self.serial = serial
+        self.model = "Mock Printer"
+
+        self.status = Status(model="MOCK PRINTER",
+                             media_width=62,
+                             media_length=0,
+                             media_type="Continuous",
+                             errors=0,
+                             status_type=StatusType.PhaseChange,
+                             phase=PhaseState.Receiving,
+                             notification=0)
+
+    def print_image(self, image: Image, red = False):
+        logger.debug(f"Mock printing image data")
+
+    def dispose(self):
+        pass
+
+    def info(self):
+        return PrinterInfo(model=self.model, serial=self.serial, status=self.status)
+
+
+class Printer(PrinterBase):
+    def __init__(self, path: str, serial: str, check_period: int = 5):
         self.path = path
         self.serial = serial
         self.backend_cls = backend_factory("linux_kernel")['backend_class']
@@ -46,7 +89,6 @@ class Printer:
 
     def print_image(self, image: Image, red=False):
         raster = BrotherQLRaster(self.model)
-        # print_data = brother_ql.brother_ql_create.convert(raster, [image], str(self.label_width), dither=True, red=red)
         print_data = brother_ql.brother_ql_create.convert(raster, [image], str(self.label_width), dither=True)
         self.backend.write(print_data)
         start = time.time()
