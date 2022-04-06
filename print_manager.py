@@ -28,7 +28,7 @@ class PrintManager:
             self.printer.print_image(image)
 
         elif request.mode == RequestMode.URL:
-            url = request.payload.decode()
+            url = request.payload if isinstance(request.payload, str) else request.payload.decode()
             logger.info(f"Received URL for print on {self.printer.serial}: {url}")
             response = requests.get(url)
             stream = BytesIO(response.content)

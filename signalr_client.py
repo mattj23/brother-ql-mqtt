@@ -1,3 +1,4 @@
+import base64
 import json
 import time
 from typing import Any, Optional, Callable
@@ -30,7 +31,7 @@ class SignalRClient(TransportClient):
         self.connection.on_open(self._on_connected)
         self.connection.on_close(self._on_disconnected)
 
-        self.connection.on("ReceiveRequest", self._on_receive_request)
+        self.connection.on("SendPrintRequest", self._on_receive_request)
 
     def _on_connected(self):
         self._connected = True
@@ -41,7 +42,12 @@ class SignalRClient(TransportClient):
         logger.info("Disconnected from SignalR hub")
 
     def _on_receive_request(self, request):
-        print(request)
+        serial, mode_, payload = request
+        mode = RequestMode(mode_)
+        if mode == RequestMode.PNG:
+            payload = base64.b64decode(payload)
+        if self._callback:
+            self._callback(PrintRequest(serial, mode, payload))
 
     def publish(self, status: HostStatus):
         if not self.connection:
