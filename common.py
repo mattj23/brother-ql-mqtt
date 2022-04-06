@@ -67,7 +67,7 @@ class PrinterInfo:
 
     def as_dict(self):
         temp = asdict(self)
-        temp["status"] = self.status.as_dict()
+        temp["status"] = None if not self.status else self.status.as_dict()
         return temp
 
 

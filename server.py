@@ -6,7 +6,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s [%(levelnam
 logger = logging.getLogger()
 
 import time
-import json
 import socket
 
 from printer import detect_printers, Printer, MockPrinter, PrinterBase
@@ -19,7 +18,7 @@ host_name = socket.gethostname()
 is_running = True
 printers: Dict[str, PrinterBase] = {}
 managers: Dict[str, PrintManager] = {}
-is_mock = True
+is_mock = False
 
 
 def get_host_ip():
@@ -86,7 +85,7 @@ def main():
         update_known_printers(settings)
 
         status = HostStatus(online=True, ip=ip_address, host=host_name, update_s=settings.printer_check_period_s,
-                            printers=[p.info() for p in printers.values()])
+                            printers=[p.info() for p in printers.values() if p.info().model is not None])
         client.publish(status)
         time.sleep(settings.printer_check_period_s)
 

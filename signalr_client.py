@@ -31,7 +31,15 @@ class SignalRClient(TransportClient):
         self.connection.on_open(self._on_connected)
         self.connection.on_close(self._on_disconnected)
 
-        self.connection.on("SendPrintRequest", self._on_receive_request)
+        def handler(arguments):
+            serial, mode_, payload = arguments
+            mode = RequestMode(mode_)
+            if mode == RequestMode.PNG:
+                payload = base64.b64decode(payload)
+            if self._callback:
+                self._callback(PrintRequest(serial, mode, payload))
+
+        self.connection.on("SendPrintRequest", handler)
 
     def _on_connected(self):
         self._connected = True
@@ -40,14 +48,6 @@ class SignalRClient(TransportClient):
     def _on_disconnected(self):
         self._connected = False
         logger.info("Disconnected from SignalR hub")
-
-    def _on_receive_request(self, request):
-        serial, mode_, payload = request
-        mode = RequestMode(mode_)
-        if mode == RequestMode.PNG:
-            payload = base64.b64decode(payload)
-        if self._callback:
-            self._callback(PrintRequest(serial, mode, payload))
 
     def publish(self, status: HostStatus):
         if not self.connection:
