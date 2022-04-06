@@ -25,7 +25,7 @@ class SignalRClient(TransportClient):
 
         self.connection: BaseHubConnection = HubConnectionBuilder() \
             .with_url(self.settings.endpoint, options={"verify_ssl": self.settings.verify_ssl}) \
-            .configure_logging(logging.DEBUG, socket_trace=True, handler=handler) \
+            #.configure_logging(logging.DEBUG, socket_trace=True, handler=handler) \
             .with_automatic_reconnect({"type": "raw", "reconnect_interval": 10, "keep_alive_interval": 10}) \
             .build()
         self.connection.on_open(self._on_connected)
